@@ -172,7 +172,7 @@ async function findSearchResult(req, res, next) {
         .skip(9 * (page - 1))
         .limit(9);
 
-      console.log("exercises   ", exercises);
+      // console.log("exercises   ", exercises);
       return res.json(exercises);
     }
   } catch (err) {

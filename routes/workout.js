@@ -89,7 +89,7 @@ router.put("/update/:workoutId", verifyAccessToken, async (req, res, next) => {
     // console.log(workout, user);
     res.status(201).json({ workout, user });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     next(err);
   }
 });
