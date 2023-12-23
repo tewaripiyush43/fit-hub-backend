@@ -17,6 +17,9 @@ require("./connection");
 
 const AuthRoute = require("./routes/auth");
 const exerciseRouter = require("./routes/exercise");
+const userRouter = require("./routes/user");
+const workoutRouter = require("./routes/workout");
+const goalRouter = require("./routes/goal");
 
 var app = express();
 app.use(morgan("dev"));
@@ -24,7 +27,7 @@ app.use(
   cors({
     credentials: true,
     origin: CORS_PORT,
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   })
 );
 app.use(cookieParser());
@@ -32,8 +35,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 //Routes
-app.use("/exercise", exerciseRouter);
-app.use("/auth", AuthRoute);
+app.use("/api/exercise", exerciseRouter);
+app.use("/api/auth", AuthRoute);
+app.use("/api/workout", workoutRouter);
+app.use("/api/user", userRouter);
+app.use("/api/goal", goalRouter);
 
 app.use(async (req, res, next) => {
   next(createError.NotFound());

@@ -9,37 +9,29 @@ const {
   login,
   deleteAccount,
 } = require("../controllers/auth");
+const createError = require("http-errors");
 
 router.get("/private", verifyAccessToken, async (req, res, next) => {
   try {
     const userId = req.userId;
-    console.log("in private route", userId);
+    // console.log("in private route", userId);
 
     const user = await User.findById(userId)
-      .then((response) => {
-        console.log("hello", response);
-        res.json({ user: response });
-      })
-      .catch((err) => {
-        console.log(err);
-        res.json({ error: "User not found" });
-      });
-    // if (user) {
-    //   console.log("user", user);
-    //   res.json(user);
-    // } else {
-    //   res.json({ error: "User not found" });
-    // }
+      .populate("workouts")
+      .populate("favoriteExercises")
+      .populate("goals");
+    if (!user) throw createError.NotFound("User not found");
+
+    res.send({ user });
   } catch (err) {
-    console.log(err.message);
-    // next(err);
-    return err;
+    // console.log(err.message);
+    next(err);
   }
 });
 
 router.post("/register", register);
 router.post("/login", login);
-router.post("/refresh-token", refreshToken);
+router.post("/refreshToken", refreshToken);
 router.post("/logout", logout);
 router.delete("/delete", deleteAccount);
 

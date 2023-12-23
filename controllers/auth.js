@@ -7,11 +7,19 @@ const {
   verifyRefreshToken,
 } = require("../helpers/jwt_helper");
 const client = require("../helpers/init_redis");
+const { createDefaultGoals } = require("../utils/goalUtils");
+const Goal = require("../models/goal");
 
 module.exports = {
   register: async (req, res, next) => {
     try {
       const result = await authSchema.validateAsync(req.body);
+
+      const usernameExist = await User.findOne({ username: result.username });
+      if (usernameExist)
+        throw createError.Conflict(
+          `Username ${result.username} is already taken`
+        );
 
       const doesExist = await User.findOne({ email: result.email });
       if (doesExist)
@@ -21,10 +29,23 @@ module.exports = {
 
       const user = new User(result);
       const savedUser = await user.save();
+      // console.log("user saved", savedUser);
       const accessToken = await signAccessToken(savedUser.id);
       // console.log("accessToken signed");
       const refreshToken = await signRefreshToken(savedUser.id);
       // console.log("refreshToken signed");
+
+      const defaultGoals = createDefaultGoals(savedUser.id);
+      // console.log("default goals", defaultGoals);
+      const goals = await Goal.insertMany(defaultGoals);
+
+      const userWithGoals = await User.findByIdAndUpdate(
+        savedUser.id,
+        { goals: goals },
+        { new: true }
+      ).populate("goals");
+
+      // console.log("user with goals", userWithGoals);
 
       const options = {
         httpOnly: true,
@@ -32,23 +53,30 @@ module.exports = {
       };
 
       res.cookie("refreshToken", refreshToken, options);
-      console.log("cookie set");
-      res.send({ accessToken: accessToken });
+      // console.log("cookie set");
+      res.status(200).send({ accessToken: accessToken });
     } catch (error) {
       if (error.isJoi === true) error.status = 422;
+      // console.log("error", error);
       next(error);
     }
   },
 
   login: async (req, res, next) => {
     try {
-      const result = await authSchema.validateAsync(req.body);
-      const user = await User.findOne({ email: result.email });
-      if (!user) throw createError.NotFound("User not registered");
+      // const result = await authSchema.validateAsync(req.body);
+      const result = req.body;
+      if (!result) throw createError.BadRequest();
+      const user = await User.findOne({
+        $or: [
+          { email: result.emailOrUsername },
+          { username: result.emailOrUsername },
+        ],
+      });
+      if (!user) throw createError.NotFound("Invalid Username/Password");
 
       const isMatch = await user.isValidPassword(result.password);
-      if (!isMatch)
-        throw createError.Unauthorized("Username/password not valid");
+      if (!isMatch) throw createError.Unauthorized("Invalid Username/Password");
 
       const accessToken = await signAccessToken(user.id);
       const refreshToken = await signRefreshToken(user.id);
@@ -59,21 +87,27 @@ module.exports = {
       };
 
       res.cookie("refreshToken", refreshToken, options);
-      res.send({ accessToken: accessToken });
+      res.status(200).send({ accessToken: accessToken });
     } catch (error) {
-      if (error.isJoi === true)
+      if (error.isJoi === true) {
+        // console.log(error);
         return next(createError.BadRequest("Invalid Username/Password"));
+      }
       next(error);
     }
   },
 
   refreshToken: async (req, res, next) => {
     try {
-      const { refreshToken } = req.body;
+      // const { refreshToken } = req.body;
+      const refreshToken = req.cookies.refreshToken;
+      // console.log("refresh token 1", refreshToken);
       if (!refreshToken) throw createError.BadRequest();
+      // console.log("refresh token 2", refreshToken);
       const userId = await verifyRefreshToken(refreshToken);
-
+      // console.log("refresh token 3", refreshToken);
       const accessToken = await signAccessToken(userId);
+      // console.log("refresh token 4", refreshToken);
       res.send({ accessToken: accessToken });
     } catch (error) {
       next(error);
@@ -107,19 +141,19 @@ module.exports = {
   },
   deleteAccount: async (req, res, next) => {
     try {
-      console.log("inside deleteAccount");
+      // console.log("inside deleteAccount");
       const refreshToken = req.cookies.refreshToken;
       if (!refreshToken) throw createError.BadRequest();
-      console.log(refreshToken);
+      // console.log(refreshToken);
       const userId = await verifyRefreshToken(refreshToken);
-      console.log("refresh token verified");
+      // console.log("refresh token verified");
       res.clearCookie("refreshToken");
 
       User.deleteOne({ _id: userId }, (err, result) => {
         if (err) {
           throw err;
         }
-        console.log(result);
+        // console.log(result);
         res.sendStatus(200);
       });
     } catch (error) {
