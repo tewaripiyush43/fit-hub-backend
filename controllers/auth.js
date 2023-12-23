@@ -57,7 +57,7 @@ module.exports = {
       res.status(200).send({ accessToken: accessToken });
     } catch (error) {
       if (error.isJoi === true) error.status = 422;
-      // console.log("error", error);
+      console.log("error", error);
       next(error);
     }
   },
@@ -90,7 +90,7 @@ module.exports = {
       res.status(200).send({ accessToken: accessToken });
     } catch (error) {
       if (error.isJoi === true) {
-        // console.log(error);
+        console.log(error);
         return next(createError.BadRequest("Invalid Username/Password"));
       }
       next(error);
