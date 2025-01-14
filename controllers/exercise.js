@@ -126,44 +126,34 @@ async function findCount(req, res, next) {
 
 async function findSearchResult(req, res, next) {
   try {
-    const exercise = req.query.exercise;
+    let exercise = req.query.exercise;
+    const page = req.query.page;
+
     if (exercise.length === 0 || exercise === "all") {
-      const page = req.query.page;
       const data = await Exercise.find()
         .skip(9 * (page - 1))
         .limit(9)
         .catch((err) => {
-          // console.log(err);
           throw err;
         });
 
-      // console.log(data);
       return res.json(data);
     } else {
-      const page = req.query.page;
-      if (exercise.includes("(")) {
-        let i = exercise.indexOf("(");
-        let j = exercise.indexOf(")");
-        exercise =
-          exercise.substr(0, i) +
-          exercise.substr(i + 1, j - i - 1) +
-          exercise.substr(j + 1);
-      }
+      // Split the string into words, ignoring parentheses
+      let exerciseArr = exercise.replace(/[()]/g, "").split(/\s+/);
+      let regexStr = exerciseArr.map((word) => `(?=.*${word})`).join("");
 
-      // let exerciseArr = exercise.split(" ");
-      // console.log(exerciseArr);
-      // exercise = exerciseArr.join(".*");
-
+      console.log(regexStr);
       const exercises = await Exercise.find({
         $or: [
-          { name: { $regex: new RegExp(`.*${exercise}.*`, "g") } },
-          { bodyPart: { $regex: new RegExp(`.*${exercise}.*`, "g") } },
-          { target: { $regex: new RegExp(`.*${exercise}.*`, "g") } },
-          { equipment: { $regex: new RegExp(`.*${exercise}.*`, "g") } },
+          { name: { $regex: new RegExp(regexStr, "gi") } },
+          { bodyPart: { $regex: new RegExp(regexStr, "gi") } },
+          { target: { $regex: new RegExp(regexStr, "gi") } },
+          { equipment: { $regex: new RegExp(regexStr, "gi") } },
           {
             secondaryMuscles: {
               $elemMatch: {
-                $regex: new RegExp(`.*${exercise}.*`, "g"),
+                $regex: new RegExp(regexStr, "gi"),
               },
             },
           },
@@ -172,11 +162,10 @@ async function findSearchResult(req, res, next) {
         .skip(9 * (page - 1))
         .limit(9);
 
-      // console.log("exercises   ", exercises);
       return res.json(exercises);
     }
   } catch (err) {
-    // console.log(err);
+    console.log(err);
     next(err);
   }
 }
