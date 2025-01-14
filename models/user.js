@@ -47,6 +47,57 @@ const UserSchema = new Schema({
   lastLogin: {
     type: Date,
   },
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  verificationToken: String,
+  verificationTokenExpires: Date,
+  followers: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "user",
+    },
+  ],
+  following: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "user",
+    },
+  ],
+  notifications: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "notification",
+    },
+  ],
+  unreadNotifications: {
+    type: Number,
+    default: 0,
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
+  isBanned: {
+    type: Boolean,
+    default: false,
+  },
+  banExpires: {
+    type: Date,
+  },
+  banReason: {
+    type: String,
+  },
+  banIssuedBy: {
+    type: Schema.Types.ObjectId,
+    ref: "user",
+  },
+  banIssuedAt: {
+    type: Date,
+  },
 });
 
 UserSchema.pre("save", async function (next) {
