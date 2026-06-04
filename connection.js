@@ -39,7 +39,25 @@ async function connectWithRetry(retryCount = 0){
 connectWithRetry();
 
 // Connection events
-mongoose.connection.on("connected", () => console.log("Mongoose connected to DB"));
+mongoose.connection.on("connected", async () => {
+  console.log("Mongoose connected to DB");
+  
+  try {
+    const Exercise = require("./models/exercise");
+    const Workout = require("./models/workout");
+    const User = require("./models/user");
+    const Goal = require("./models/goal");
+
+    await Exercise.syncIndexes();
+    await Workout.syncIndexes();
+    await User.syncIndexes();
+    await Goal.syncIndexes();
+
+    console.log("Mongoose schemas and MongoDB indexes synchronized successfully.");
+  } catch (err) {
+    console.error("Index sync error:", err.message);
+  }
+});
 mongoose.connection.on("error", (err) => console.error("Mongoose connection error:", err.message));
 mongoose.connection.on("disconnected", () => console.warn("Mongoose disconnected"));
 
