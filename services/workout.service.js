@@ -49,7 +49,7 @@ const updateWorkout = async (userId, workoutId, { updatedData }) => {
         workoutId,
         { $set: updatedData },
         { new: true }
-    ).lean();
+    ).populate("exercises").lean();
 
     if (!workout) throw createError.NotFound("Workout not found");
 
