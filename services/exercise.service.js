@@ -37,7 +37,22 @@ const getExerciseCount = async (term) => {
         return await Exercise.countDocuments({});
     }
 
-    const safeTerm = escapeRegex(term.trim());
+    const trimmedTerm = term.trim();
+
+    // 1. Try text index count first (Fast)
+    try {
+        const textCount = await Exercise.countDocuments({
+            $text: { $search: trimmedTerm }
+        });
+        if (textCount > 0) {
+            return textCount;
+        }
+    } catch (err) {
+        // ignore and fallback
+    }
+
+    // 2. Fallback to regex count (Flexible partial matching)
+    const safeTerm = escapeRegex(trimmedTerm);
     const regex = new RegExp(safeTerm, "i");
 
     const count = await Exercise.countDocuments({
@@ -100,7 +115,28 @@ const searchExercises = async (term, page = 1) => {
             .lean();
     }
 
-    const words = term
+    const trimmedTerm = term.trim();
+
+    // 1. Try text index search first (Fast, sorted by text relevance)
+    try {
+        const textResults = await Exercise.find(
+            { $text: { $search: trimmedTerm } },
+            { score: { $meta: "textScore" } }
+        )
+            .sort({ score: { $meta: "textScore" } })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        if (textResults && textResults.length > 0) {
+            return textResults;
+        }
+    } catch (err) {
+        console.error("Text search error, falling back to regex:", err.message);
+    }
+
+    // 2. Fallback to regex search (Flexible partial matching)
+    const words = trimmedTerm
         .replace(/[()]/g, "")
         .split(/\s+/)
         .map(w => escapeRegex(w));
