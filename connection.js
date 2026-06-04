@@ -1,29 +1,53 @@
 const mongoose = require("mongoose");
 
-mongoose
-  .connect(process.env.DB, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    console.log("mongodb connected.");
-  })
-  .catch((err) => console.log(err.message));
+const DB_URI = process.env.DB;
+if (!DB_URI) {
+  console.error("Missing DB environment variable. Set process.env.DB");
+  process.exit(1);
+}
 
-mongoose.connection.on("connected", () => {
-  console.log("Mongoose connected to db");
-});
+const MAX_RETRIES = 5;
+const RETRY_DELAY_MS = 3000;
 
-mongoose.connection.on("error", (err) => {
-  console.log(err.message);
-});
+async function connectWithRetry(retryCount = 0){
+  try{
+    await mongoose.connect(DB_URI);
+  }
+  catch(err){
+      console.error(`MongoDB connection error (attempt ${retryCount + 1}):`, err.message);
 
-mongoose.connection.on("disconnected", () => {
-  console.log("Mongoose connection is disconnected.");
-});
+      if(retryCount >= MAX_RETRIES){
+        console.error("Max retries reached. Exiting...");
+        process.exit(1);
+      }
 
-process.on("SIGINT", async () => {
-  console.log("mongoose connection is disconnected due to app termination.");
-  await mongoose.connection.close();
-  process.exit(0);
-});
+      console.log(`Retrying in ${RETRY_DELAY_MS / 1000} seconds...`);
+      setTimeout(() => {
+        connectWithRetry(retryCount + 1);
+      }, RETRY_DELAY_MS);
+  }
+}
+
+connectWithRetry();
+
+// Connection events
+mongoose.connection.on("connected", () => console.log("Mongoose connected to DB"));
+mongoose.connection.on("error", (err) => console.error("Mongoose connection error:", err.message));
+mongoose.connection.on("disconnected", () => console.warn("Mongoose disconnected"));
+
+// Graceful shutdown
+const gracefulExit = async () => {
+  try {
+    await mongoose.disconnect();
+    console.log("Mongoose connection closed through app termination");
+    process.exit(0);
+  } catch (err) {
+    console.error("Error during mongoose shutdown:", err);
+    process.exit(1);
+  }
+};
+
+process.on("SIGINT", gracefulExit);
+process.on("SIGTERM", gracefulExit);
+
+module.exports = mongoose;
