@@ -5,6 +5,13 @@ const LOG_FILE = path.join(__dirname, '../logs/local-requests.log');
 const MAX_LINES = 100;
 
 function writeLog(line) {
+    if (process.env.NODE_ENV === 'production') return;
+
+    const logDir = path.dirname(LOG_FILE);
+    if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+    }
+
     let lines = [];
 
     if (fs.existsSync(LOG_FILE)) {
