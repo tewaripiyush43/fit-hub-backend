@@ -4,13 +4,13 @@ const ListSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      max: 50,
+      maxlength: 50,
       required: true,
     },
     exercises: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Exercise",
+        ref: "exercisev2",
         default: [],
       },
     ],
@@ -18,7 +18,7 @@ const ListSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    facourite: {
+    favourite: {
       type: Boolean,
       default: false,
     },

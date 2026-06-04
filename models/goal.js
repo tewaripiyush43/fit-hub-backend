@@ -6,11 +6,12 @@ const GoalSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: "user",
     required: true,
+    index: true,
   },
   type: {
     type: String,
     enum: ["longTerm", "shortTerm"],
-    default: "goal",
+    default: "shortTerm",
   },
   goal: {
     type: String,

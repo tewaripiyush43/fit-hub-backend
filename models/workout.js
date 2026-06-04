@@ -5,12 +5,12 @@ const WorkoutSchema = new Schema(
   {
     name: {
       type: String,
-      max: 50,
+      maxlength: 50,
       required: true,
     },
     description: {
       type: String,
-      max: 500,
+      maxlength: 2500,
       default: "Add a description",
     },
     exercises: [
@@ -27,11 +27,8 @@ const WorkoutSchema = new Schema(
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "user",
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
+      index: true,
+    }
   },
   { timestamps: true }
 );
