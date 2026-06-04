@@ -1,9 +1,17 @@
 const mongoose = require("mongoose");
 
-const DB_URI = process.env.DB;
+let DB_URI = process.env.DB;
 if (!DB_URI) {
   console.error("Missing DB environment variable. Set process.env.DB");
   process.exit(1);
+}
+
+// Strip surrounding quotes if incorrectly added in hosting dashboards
+if (DB_URI.startsWith('"') && DB_URI.endsWith('"')) {
+  DB_URI = DB_URI.slice(1, -1);
+}
+if (DB_URI.startsWith("'") && DB_URI.endsWith("'")) {
+  DB_URI = DB_URI.slice(1, -1);
 }
 
 const MAX_RETRIES = 5;
