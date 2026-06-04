@@ -33,6 +33,9 @@ const escapeRegex = (s) =>
     s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const getExerciseCount = async (term) => {
+    if (!term || !term.trim() || term === "all") {
+        return await Exercise.countDocuments({});
+    }
 
     const safeTerm = escapeRegex(term.trim());
     const regex = new RegExp(safeTerm, "i");
