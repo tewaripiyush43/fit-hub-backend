@@ -18,6 +18,7 @@ const userRouter = require("./routes/user");
 const workoutRouter = require("./routes/workout");
 const goalRouter = require("./routes/goal");
 const dummyRouter = require("./routes/dummy")
+const aiRouter = require("./routes/ai");
 
 const PORT = process.env.PORT || 9000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN;
@@ -58,6 +59,7 @@ app.use("/api/exercise", exerciseRouter);
 app.use("/api/workout", workoutRouter);
 app.use("/api/user", userRouter);
 app.use("/api/goal", goalRouter);
+app.use("/api/ai", aiRouter);
 
 app.use(notFoundHandler);
 

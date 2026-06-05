@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { verifyAccessToken } = require("../helpers/jwt_helper");
+const { verifyAccessToken } = require("../helpers/jwtHelper");
 const validate = require("../middlewares/validate");
 const { authSchema, loginSchema } = require("../validations/auth.schema");
 const {

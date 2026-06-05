@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { verifyAccessToken } = require("../helpers/jwt_helper");
+const { verifyAccessToken } = require("../helpers/jwtHelper");
 const validate = require("../middlewares/validate");
 const { updateGoalsSchema } = require("../validations/goal.schema");
 const { getGoals, updateGoals } = require("../controllers/goal");

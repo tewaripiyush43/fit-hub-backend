@@ -73,37 +73,7 @@ const getExerciseCount = async (term) => {
     return count;
 };
 
-// const searchExercises = async (term, page = 1) => {
-//     const limit = 9;
-//     const skip = limit * (page - 1);
 
-//     if (!term || term === "all" || term.length === 0) {
-//         return await Exercise.find().skip(skip).limit(limit).lean();
-//     }
-
-//     // Split the string into words, ignoring parentheses
-//     let exerciseArr = term.replace(/[()]/g, "").split(/\s+/);
-//     let regexStr = exerciseArr.map((word) => `(?=.*${word})`).join("");
-//     const regex = new RegExp(regexStr, "gi");
-
-//     return await Exercise.find({
-//         $or: [
-//             { name: { $regex: regex } },
-//             { bodyPart: { $regex: regex } },
-//             { target: { $regex: regex } },
-//             { equipment: { $regex: regex } },
-//             {
-//                 secondaryMuscles: {
-//                     $elemMatch: {
-//                         $regex: regex,
-//                     },
-//                 },
-//             },
-//         ],
-//     })
-//         .skip(skip)
-//         .limit(limit).lean();
-// };
 const searchExercises = async (term, page = 1) => {
     const limit = 9;
     const skip = limit * (page - 1);

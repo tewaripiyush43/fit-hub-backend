@@ -5,7 +5,7 @@ const {
     signAccessToken,
     signRefreshToken,
     verifyRefreshToken,
-} = require("../helpers/jwt_helper");
+} = require("../helpers/jwtHelper");
 const { createDefaultGoals } = require("../utils/goalUtils");
 
 const register = async (userData) => {

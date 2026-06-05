@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { verifyAccessToken, verifyAccessTokenOptional } = require("../helpers/jwt_helper");
+const { verifyAccessToken, verifyAccessTokenOptional } = require("../helpers/jwtHelper");
 const validate = require("../middlewares/validate");
 const {
   createWorkoutSchema,

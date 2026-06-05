@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/user");
-const { verifyAccessToken } = require("../helpers/jwt_helper");
+const { verifyAccessToken } = require("../helpers/jwtHelper");
 const createError = require("http-errors");
 
 router.put("/updateUserInfo", verifyAccessToken, async (req, res, next) => {
