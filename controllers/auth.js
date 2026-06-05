@@ -34,14 +34,22 @@ module.exports = {
   logout: async (req, res) => {
     const { refreshToken } = req.cookies;
     await authService.logout(refreshToken);
-    res.clearCookie("refreshToken");
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    });
     res.sendStatus(200);
   },
 
   deleteAccount: async (req, res) => {
     const { refreshToken } = req.cookies;
     await authService.deleteAccount(refreshToken);
-    res.clearCookie("refreshToken");
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    });
     res.sendStatus(200);
   },
 
