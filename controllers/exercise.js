@@ -30,7 +30,6 @@ module.exports = {
   },
 
   findSearchResult: async (req, res) => {
-    console.log(req);
     const { exercise, page } = req.query;
     const data = await exerciseService.searchExercises(exercise, page);
     res.json(data);
