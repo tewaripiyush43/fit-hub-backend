@@ -3,6 +3,39 @@ const Workout = require("../models/workout");
 const User = require("../models/user");
 const Exercise = require("../models/exercise");
 
+const WORKOUT_DESCRIPTION_MAX_LENGTH = 2500;
+
+const getPopulatedUser = (userId) =>
+    User.findById(userId)
+        .populate("workouts")
+        .populate("favoriteExercises")
+        .populate("goals")
+        .lean();
+
+const getOwnedWorkout = async (userId, workoutId) => {
+    if (!workoutId) throw createError.BadRequest("Workout id cannot be empty");
+
+    const workout = await Workout.findOne({ _id: workoutId, createdBy: userId });
+    if (!workout) throw createError.NotFound("Workout not found");
+
+    return workout;
+};
+
+const getEditableWorkoutData = (updatedData = {}) => {
+    const editableData = {};
+
+    if (Object.prototype.hasOwnProperty.call(updatedData, "name")) {
+        editableData.name = updatedData.name;
+    }
+    if (Object.prototype.hasOwnProperty.call(updatedData, "description")) {
+        editableData.description = updatedData.description;
+    }
+    if (Object.prototype.hasOwnProperty.call(updatedData, "isPrivate")) {
+        editableData.isPrivate = updatedData.isPrivate;
+    }
+
+    return editableData;
+};
 
 const createWorkout = async (userId, { name }) => {
     const workout = new Workout({
@@ -26,7 +59,8 @@ const createWorkout = async (userId, { name }) => {
 };
 
 const removeWorkout = async (userId, workoutId) => {
-    if (!workoutId) throw createError.BadRequest("Workout id cannot be empty");
+    await getOwnedWorkout(userId, workoutId);
+    await Workout.deleteOne({ _id: workoutId, createdBy: userId });
 
     const user = await User.findByIdAndUpdate(
         userId,
@@ -38,26 +72,22 @@ const removeWorkout = async (userId, workoutId) => {
         .populate("goals")
         .lean();
 
-    await Workout.findByIdAndDelete(workoutId);
     return { user };
 };
 
 const updateWorkout = async (userId, workoutId, { updatedData }) => {
-    if (!workoutId) throw createError.BadRequest("Workout id cannot be empty");
+    await getOwnedWorkout(userId, workoutId);
 
-    const workout = await Workout.findByIdAndUpdate(
-        workoutId,
-        { $set: updatedData },
+    const editableData = getEditableWorkoutData(updatedData);
+    const workout = await Workout.findOneAndUpdate(
+        { _id: workoutId, createdBy: userId },
+        { $set: editableData },
         { new: true }
     ).populate("exercises").lean();
 
     if (!workout) throw createError.NotFound("Workout not found");
 
-    const user = await User.findById(userId)
-        .populate("workouts")
-        .populate("favoriteExercises")
-        .populate("goals")
-        .lean();
+    const user = await getPopulatedUser(userId);
 
     return { workout, user };
 };
@@ -76,41 +106,33 @@ const getWorkout = async (workoutId, userId) => {
 };
 
 const addExerciseToWorkout = async (userId, workoutId, { exerciseId }) => {
-    if (!workoutId) throw createError.BadRequest("Workout id cannot be empty");
+    await getOwnedWorkout(userId, workoutId);
 
-    const workout = await Workout.findByIdAndUpdate(
-        workoutId,
-        { $push: { exercises: exerciseId } },
+    const workout = await Workout.findOneAndUpdate(
+        { _id: workoutId, createdBy: userId },
+        { $addToSet: { exercises: exerciseId } },
         { new: true }
     ).populate("exercises").lean();
 
     if (!workout) throw createError.NotFound("Workout not found");
 
-    const user = await User.findById(userId)
-        .populate("workouts")
-        .populate("favoriteExercises")
-        .populate("goals")
-        .lean();
+    const user = await getPopulatedUser(userId);
 
     return { workout, user };
 };
 
 const removeExerciseFromWorkout = async (userId, workoutId, { exerciseId }) => {
-    if (!workoutId) throw createError.BadRequest("Workout id cannot be empty");
+    await getOwnedWorkout(userId, workoutId);
 
-    const workout = await Workout.findByIdAndUpdate(
-        workoutId,
+    const workout = await Workout.findOneAndUpdate(
+        { _id: workoutId, createdBy: userId },
         { $pull: { exercises: exerciseId } },
         { new: true }
     ).populate("exercises").lean();
 
     if (!workout) throw createError.NotFound("Workout not found");
 
-    const user = await User.findById(userId)
-        .populate("workouts")
-        .populate("favoriteExercises")
-        .populate("goals")
-        .lean();
+    const user = await getPopulatedUser(userId);
 
     return { workout, user };
 };
@@ -210,7 +232,7 @@ const generateAIWorkout = async (userId, { prompt, goal, weight, height }) => {
     You must output a single JSON object matching this schema:
     {
       "name": "Workout Name (max 50 chars)",
-      "description": "Workout Description explaining the focus, sets, reps, and instructions for each selected exercise (max 2000 chars). Format it clearly using bullet points and line breaks so it displays nicely.",
+      "description": "Workout description explaining the focus, sets, reps, and instructions for each selected exercise (max 2500 chars). Format it clearly using bullet points and line breaks so it displays nicely.",
       "selectedExerciseIds": ["array of selected exercise IDs from the candidate list"]
     }
     `;
@@ -252,6 +274,8 @@ const generateAIWorkout = async (userId, { prompt, goal, weight, height }) => {
     }
 
     const aiWorkout = JSON.parse(completionText.trim());
+    const workoutDescription = (aiWorkout.description || "Custom workout plan.")
+        .slice(0, WORKOUT_DESCRIPTION_MAX_LENGTH);
 
     const exerciseIds = aiWorkout.selectedExerciseIds || [];
     const validExerciseIds = [];
@@ -267,7 +291,7 @@ const generateAIWorkout = async (userId, { prompt, goal, weight, height }) => {
 
     const workout = new Workout({
         name: aiWorkout.name || "AI Generated Workout",
-        description: aiWorkout.description || "Custom workout plan.",
+        description: workoutDescription,
         exercises: validExerciseIds,
         createdBy: userId,
     });
@@ -291,6 +315,9 @@ const cloneWorkout = async (userId, workoutId) => {
     if (!workoutId) throw createError.BadRequest("Workout id cannot be empty");
     const originalWorkout = await Workout.findById(workoutId).lean();
     if (!originalWorkout) throw createError.NotFound("Workout not found");
+    if (originalWorkout.isPrivate && originalWorkout.createdBy?.toString() !== userId) {
+        throw createError.Forbidden("This workout is private.");
+    }
 
     const clonedWorkout = new Workout({
         name: originalWorkout.name + " (Copy)",

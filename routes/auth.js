@@ -18,6 +18,6 @@ router.post("/register", validate(authSchema), register);
 router.post("/login", validate(loginSchema), login);
 router.post("/refreshToken", refreshToken);
 router.post("/logout", logout);
-router.delete("/delete", deleteAccount);
+router.delete("/delete", verifyAccessToken, deleteAccount);
 
 module.exports = router;

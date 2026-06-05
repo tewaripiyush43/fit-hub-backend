@@ -129,7 +129,7 @@ const searchExercises = async (term, page = 1) => {
 };
 
 const getExercisesByBodyPart = async (bodyPart) => {
-    const regex = new RegExp(`.*${bodyPart}.*`, "g");
+    const regex = new RegExp(escapeRegex(bodyPart), "i");
     return await Exercise.aggregate([
         {
             $match: {
@@ -141,7 +141,7 @@ const getExercisesByBodyPart = async (bodyPart) => {
 };
 
 const getExercisesByMuscle = async (muscle) => {
-    const regex = new RegExp(`.*${muscle}.*`, "g");
+    const regex = new RegExp(escapeRegex(muscle), "i");
     return await Exercise.aggregate([
         {
             $match: {

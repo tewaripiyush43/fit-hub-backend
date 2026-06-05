@@ -8,8 +8,8 @@ async function updateUserInfo(userId, userInfo) {
   user.fullname = userInfo.fullname;
   user.bio = userInfo.bio;
   user.location = userInfo.location;
-  user.age = userInfo.age;
-  user.playlistLink = userInfo.playlistLink;
+  user.age = userInfo.age === "" ? undefined : userInfo.age;
+  user.playlistLink = userInfo.playlistLink || "";
 
   const updatedUser = await user.save();
   return await User.findById(updatedUser._id)
@@ -26,7 +26,7 @@ async function addToFavorites(userId, exerciseId) {
 
   return await User.findByIdAndUpdate(
     userId,
-    { $push: { favoriteExercises: exerciseId } },
+    { $addToSet: { favoriteExercises: exerciseId } },
     { new: true }
   )
     .populate("workouts")

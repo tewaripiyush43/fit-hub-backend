@@ -10,7 +10,7 @@ module.exports = {
       expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), //1 month
     };
     res.cookie("refreshToken", result.refreshToken, options);
-    res.status(200).send({ accessToken: result.accessToken });
+    res.status(200).send({ accessToken: result.accessToken, user: result.user });
   },
 
   login: async (req, res) => {
@@ -22,7 +22,7 @@ module.exports = {
       expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), //1 month
     };
     res.cookie("refreshToken", result.refreshToken, options);
-    res.status(200).send({ accessToken: result.accessToken });
+    res.status(200).send({ accessToken: result.accessToken, user: result.user });
   },
 
   refreshToken: async (req, res) => {
@@ -43,8 +43,7 @@ module.exports = {
   },
 
   deleteAccount: async (req, res) => {
-    const { refreshToken } = req.cookies;
-    await authService.deleteAccount(refreshToken);
+    await authService.deleteAccount(req.userId);
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

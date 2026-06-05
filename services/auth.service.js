@@ -1,12 +1,23 @@
 const createError = require("http-errors");
 const User = require("../models/user");
 const Goal = require("../models/goal");
+const Workout = require("../models/workout");
 const {
     signAccessToken,
     signRefreshToken,
     verifyRefreshToken,
 } = require("../helpers/jwtHelper");
 const { createDefaultGoals } = require("../utils/goalUtils");
+
+const getPopulatedUser = async (userId) => {
+    const user = await User.findById(userId)
+        .populate("workouts")
+        .populate("favoriteExercises")
+        .populate("goals")
+        .lean();
+    if (!user) throw createError.NotFound("User not found");
+    return user;
+};
 
 const register = async (userData) => {
     const { username, email } = userData;
@@ -30,13 +41,17 @@ const register = async (userData) => {
     // We are not returning the userWithGoals yet in the original controller,
     // but it did populate goals. The original response only sent { accessToken }.
     // However, it updated the user goals. We keep this logic.
-    await User.findByIdAndUpdate(
+    const userWithGoals = await User.findByIdAndUpdate(
         savedUser.id,
         { goals: goals },
         { new: true }
-    ).populate("goals");
+    )
+        .populate("workouts")
+        .populate("favoriteExercises")
+        .populate("goals")
+        .lean();
 
-    return { accessToken, refreshToken };
+    return { accessToken, refreshToken, user: userWithGoals };
 };
 
 const login = async ({ emailOrUsername, password }) => {
@@ -53,8 +68,9 @@ const login = async ({ emailOrUsername, password }) => {
 
     const accessToken = await signAccessToken(user.id);
     const refreshToken = await signRefreshToken(user.id);
+    const populatedUser = await getPopulatedUser(user.id);
 
-    return { accessToken, refreshToken };
+    return { accessToken, refreshToken, user: populatedUser };
 };
 
 const refreshToken = async (refreshTokenInput) => {
@@ -72,21 +88,18 @@ const logout = async (refreshTokenInput) => {
     return true;
 };
 
-const deleteAccount = async (refreshTokenInput) => {
-    if (!refreshTokenInput) throw createError.BadRequest();
-    const userId = await verifyRefreshToken(refreshTokenInput);
-    await User.deleteOne({ _id: userId });
+const deleteAccount = async (userId) => {
+    if (!userId) throw createError.Unauthorized();
+    await Promise.all([
+        User.deleteOne({ _id: userId }),
+        Goal.deleteMany({ userId }),
+        Workout.deleteMany({ createdBy: userId }),
+    ]);
     return true;
 };
 
 const getPrivateData = async (userId) => {
-    const user = await User.findById(userId)
-        .populate("workouts")
-        .populate("favoriteExercises")
-        .populate("goals")
-        .lean();
-    if (!user) throw createError.NotFound("User not found");
-    return user;
+    return getPopulatedUser(userId);
 };
 
 module.exports = {

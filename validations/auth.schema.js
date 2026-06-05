@@ -5,7 +5,7 @@ const authSchema = Joi.object({
     fullname: Joi.string().min(3).max(30),
     email: Joi.string().email().lowercase().required(),
     password: Joi.string().min(2).required(),
-    bio: Joi.string().max(200),
+    bio: Joi.string().max(170),
     age: Joi.number().min(1).max(100),
 });
 

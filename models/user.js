@@ -10,6 +10,7 @@ const UserSchema = new Schema({
   profilePictureURL: { type: String },
   bio: {
     type: String,
+    maxlength: 170,
     default: "Your bio goes here. Edit your profile to add a bio. max 170 chars",
   },
   location: String,

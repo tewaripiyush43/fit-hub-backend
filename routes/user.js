@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const { verifyAccessToken } = require("../helpers/jwtHelper");
+const validate = require("../middlewares/validate");
+const { updateUserInfoSchema } = require("../validations/user.schema");
 const {
   updateUserInfo,
   addToFavorites,
@@ -10,7 +12,7 @@ const {
   updatePRs
 } = require("../controllers/user");
 
-router.put("/updateUserInfo", verifyAccessToken, updateUserInfo);
+router.put("/updateUserInfo", verifyAccessToken, validate(updateUserInfoSchema), updateUserInfo);
 router.put("/addToFavorites/:exerciseId", verifyAccessToken, addToFavorites);
 router.put("/removeFromFavorites/:exerciseId", verifyAccessToken, removeFromFavorites);
 router.post("/log-session", verifyAccessToken, logWorkoutSession);
