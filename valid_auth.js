@@ -5,33 +5,41 @@ process.env.REFRESH_TOKEN_SECRET = "test_refresh_secret";
 const assert = require("assert");
 const User = require("./models/user");
 
-// Mock User model methods
-User.findOne = async (query) => {
-    // console.log("Mock User.findOne called with:", query);
-    if (query.username === "takenUser") return { id: "123", username: "takenUser" };
-    if (query.email === "taken@example.com") return { id: "123", email: "taken@example.com" };
-    if (query.$or) {
+const createQueryChain = (result) => {
+    const chain = {
+        select: () => chain,
+        populate: () => chain,
+        lean: () => chain,
+        then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
+        catch: (reject) => Promise.resolve(result).catch(reject)
+    };
+    return chain;
+};
+
+User.findOne = (query) => {
+    let result = null;
+    if (query.username === "takenUser") result = { id: "123", username: "takenUser" };
+    else if (query.email === "taken@example.com") result = { id: "123", email: "taken@example.com" };
+    else if (query.$or) {
         // Mock login lookup
         const emailOrUser = query.$or[0].email;
         if (emailOrUser === "validUser" || emailOrUser === "valid@example.com") {
-            return {
+            result = {
                 id: "user123",
                 isValidPassword: async () => true
             };
         }
     }
-    return null;
+    return createQueryChain(result);
 };
 
 User.prototype.save = async function () {
-    // console.log("Mock User.save called");
     this.id = "new_user_id";
     return this;
 };
 
-User.findByIdAndUpdate = () => ({
-    populate: async () => ({ id: "user123", goals: [] })
-});
+User.findByIdAndUpdate = () => createQueryChain({ id: "user123", goals: [] });
+User.findById = () => createQueryChain({ id: "user123", workouts: [], favoriteExercises: [], goals: [] });
 
 // Mock Goal model (avoiding DB errors)
 const Goal = require("./models/goal");

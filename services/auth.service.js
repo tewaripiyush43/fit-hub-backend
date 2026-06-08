@@ -60,7 +60,7 @@ const login = async ({ emailOrUsername, password }) => {
             { email: emailOrUsername },
             { username: emailOrUsername },
         ],
-    });
+    }).select("+password");
     if (!user) throw createError.NotFound("Invalid Username/Password");
 
     const isMatch = await user.isValidPassword(password);
