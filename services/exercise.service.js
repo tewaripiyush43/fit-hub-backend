@@ -129,11 +129,11 @@ const searchExercises = async (term, page = 1) => {
 };
 
 const getExercisesByBodyPart = async (bodyPart) => {
-    const regex = new RegExp(escapeRegex(bodyPart), "i");
+    const normalizedBodyPart = bodyPart.trim().toLowerCase();
     return await Exercise.aggregate([
         {
             $match: {
-                bodyPart: { $regex: regex },
+                bodyPart: normalizedBodyPart,
             },
         },
         { $sample: { size: 9 } },
@@ -141,17 +141,13 @@ const getExercisesByBodyPart = async (bodyPart) => {
 };
 
 const getExercisesByMuscle = async (muscle) => {
-    const regex = new RegExp(escapeRegex(muscle), "i");
+    const normalizedMuscle = muscle.trim().toLowerCase();
     return await Exercise.aggregate([
         {
             $match: {
                 $or: [
-                    { target: { $regex: regex } },
-                    {
-                        secondaryMuscles: {
-                            $elemMatch: { $regex: regex },
-                        },
-                    },
+                    { target: normalizedMuscle },
+                    { secondaryMuscles: normalizedMuscle },
                 ],
             },
         },
