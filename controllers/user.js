@@ -52,10 +52,51 @@ async function clearSessionHistory(req, res, next) {
   }
 }
 
+async function getSessionHistory(req, res, next) {
+  try {
+    const userId = req.userId;
+    const result = await userService.getSessionHistory(userId, req.query);
+    res.send(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function updatePRs(req, res, next) {
   try {
     const userId = req.userId;
     const populatedUser = await userService.updatePRs(userId, req.body.prs);
+    res.send(populatedUser);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function addBodyMetric(req, res, next) {
+  try {
+    const userId = req.userId;
+    const populatedUser = await userService.addBodyMetric(userId, req.body);
+    res.send(populatedUser);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteBodyMetric(req, res, next) {
+  try {
+    const userId = req.userId;
+    const metricId = req.params.metricId;
+    const populatedUser = await userService.deleteBodyMetric(userId, metricId);
+    res.send(populatedUser);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateSettings(req, res, next) {
+  try {
+    const userId = req.userId;
+    const populatedUser = await userService.updateSettings(userId, req.body);
     res.send(populatedUser);
   } catch (err) {
     next(err);
@@ -68,5 +109,9 @@ module.exports = {
   removeFromFavorites,
   logWorkoutSession,
   clearSessionHistory,
-  updatePRs
+  getSessionHistory,
+  updatePRs,
+  addBodyMetric,
+  deleteBodyMetric,
+  updateSettings,
 };

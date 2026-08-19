@@ -16,8 +16,19 @@ const {
   removeExercise,
   generate,
   clone,
+  explore,
+  dailyWOD,
+  official,
+  aiCoachSummary,
 } = require("../controllers/workout");
 
+// Public & Global Explore Endpoints (Authentication optional)
+router.get("/explore", verifyAccessTokenOptional, explore);
+router.get("/daily-wod", verifyAccessTokenOptional, dailyWOD);
+router.get("/official", verifyAccessTokenOptional, official);
+router.post("/ai-coach-summary", verifyAccessTokenOptional, aiCoachSummary);
+
+// Protected User Workout Actions
 router.post("/create", verifyAccessToken, validate(createWorkoutSchema), create);
 router.post("/generate-ai", verifyAccessToken, generate);
 router.delete("/remove/:workoutId", verifyAccessToken, remove);

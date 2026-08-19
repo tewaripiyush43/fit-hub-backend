@@ -4,6 +4,7 @@ const WORKOUT_DESCRIPTION_MAX_LENGTH = 2500;
 
 const createWorkoutSchema = Joi.object({
     name: Joi.string().required(),
+    exerciseId: Joi.string().allow("", null).optional(),
 });
 
 const updateWorkoutSchema = Joi.object({

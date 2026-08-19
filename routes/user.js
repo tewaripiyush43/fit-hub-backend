@@ -2,21 +2,33 @@ const express = require("express");
 const router = express.Router();
 const { verifyAccessToken } = require("../helpers/jwtHelper");
 const validate = require("../middlewares/validate");
-const { updateUserInfoSchema } = require("../validations/user.schema");
+const {
+  updateUserInfoSchema,
+  bodyMetricSchema,
+  updateSettingsSchema,
+} = require("../validations/user.schema");
 const {
   updateUserInfo,
   addToFavorites,
   removeFromFavorites,
   logWorkoutSession,
   clearSessionHistory,
-  updatePRs
+  getSessionHistory,
+  updatePRs,
+  addBodyMetric,
+  deleteBodyMetric,
+  updateSettings,
 } = require("../controllers/user");
 
 router.put("/updateUserInfo", verifyAccessToken, validate(updateUserInfoSchema), updateUserInfo);
 router.put("/addToFavorites/:exerciseId", verifyAccessToken, addToFavorites);
 router.put("/removeFromFavorites/:exerciseId", verifyAccessToken, removeFromFavorites);
+router.get("/session-history", verifyAccessToken, getSessionHistory);
 router.post("/log-session", verifyAccessToken, logWorkoutSession);
 router.post("/clear-session-history", verifyAccessToken, clearSessionHistory);
 router.put("/update-prs", verifyAccessToken, updatePRs);
+router.post("/body-metrics", verifyAccessToken, validate(bodyMetricSchema), addBodyMetric);
+router.delete("/body-metrics/:metricId", verifyAccessToken, deleteBodyMetric);
+router.put("/settings", verifyAccessToken, validate(updateSettingsSchema), updateSettings);
 
 module.exports = router;

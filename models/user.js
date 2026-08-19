@@ -16,6 +16,8 @@ const UserSchema = new Schema({
   location: String,
   age: Number,
   gender: String,
+  height: Number,
+  weight: Number,
   playlistLink: { type: String, default: "" },
   favoriteExercises: [
     {
@@ -35,6 +37,41 @@ const UserSchema = new Schema({
       ref: "goal",
     },
   ],
+  bodyMetrics: [
+    {
+      date: { type: String, required: true },
+      weight: { type: Number, required: true },
+      height: { type: Number, required: true },
+      bmi: { type: Number, required: true },
+      unit: { type: String, default: "metric" },
+      timestamp: { type: Number },
+      notes: { type: String, default: "" },
+    }
+  ],
+  settings: {
+    unitPreference: {
+      type: String,
+      enum: ["metric", "imperial"],
+      default: "metric",
+    },
+    defaultWorkoutPrivacy: {
+      type: String,
+      enum: ["private", "public"],
+      default: "private",
+    },
+    emailReminders: {
+      type: Boolean,
+      default: true,
+    },
+    monthlyAchievements: {
+      type: Boolean,
+      default: true,
+    },
+    sidebarPinned: {
+      type: Boolean,
+      default: false,
+    },
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -98,10 +135,28 @@ const UserSchema = new Schema({
       workoutId: String,
       workoutName: String,
       date: String,
+      time: String,
+      timestamp: Number,
       duration: String,
       totalVolume: Number,
       completedSets: Number,
       totalSets: Number,
+      exercises: [
+        {
+          exerciseId: String,
+          exerciseName: String,
+          targetMuscle: String,
+          gifUrl: String,
+          sets: [
+            {
+              setNum: Number,
+              weight: Number,
+              reps: Number,
+              completed: Boolean,
+            }
+          ]
+        }
+      ]
     }
   ],
   streak: {
