@@ -78,6 +78,14 @@ app.use("/api/user", userRouter);
 app.use("/api/goal", goalRouter);
 app.use("/api/ai", aiRouter);
 
+// Health check endpoints for Render and uptime monitoring
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "healthy", service: "FitHub Backend API", uptime: process.uptime() });
+});
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "healthy", timestamp: new Date().toISOString() });
+});
+
 app.use(notFoundHandler);
 
 app.use(errorHandler);
