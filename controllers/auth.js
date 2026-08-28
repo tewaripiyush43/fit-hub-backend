@@ -7,7 +7,7 @@ module.exports = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), //1 month
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 1 month
     };
     res.cookie("refreshToken", result.refreshToken, options);
     res.status(200).send({ accessToken: result.accessToken, user: result.user });
@@ -19,7 +19,7 @@ module.exports = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), //1 month
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 1 month
     };
     res.cookie("refreshToken", result.refreshToken, options);
     res.status(200).send({ accessToken: result.accessToken, user: result.user });
@@ -28,7 +28,14 @@ module.exports = {
   refreshToken: async (req, res) => {
     const { refreshToken } = req.cookies;
     const result = await authService.refreshToken(refreshToken);
-    res.send(result);
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 1 month
+    };
+    res.cookie("refreshToken", result.refreshToken, options);
+    res.send({ accessToken: result.accessToken });
   },
 
   logout: async (req, res) => {

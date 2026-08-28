@@ -1,5 +1,5 @@
 const workoutService = require("../services/workout.service");
-const { generateAICoachDebrief } = require("../services/ai.service");
+const { generateAICoachDebrief, generateAIMuscleAnalysis } = require("../services/ai.service");
 
 module.exports = {
     create: async (req, res) => {
@@ -74,5 +74,10 @@ module.exports = {
     aiCoachSummary: async (req, res) => {
         const summary = await generateAICoachDebrief(req.body);
         res.status(200).json({ summary });
+    },
+
+    aiMuscleCoach: async (req, res) => {
+        const analysis = await generateAIMuscleAnalysis(req.body);
+        res.status(200).json(analysis);
     },
 };

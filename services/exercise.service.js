@@ -1,5 +1,6 @@
 const Exercise = require("../models/exercise");
 const bodyParts = require("../constants/bodyParts");
+const { escapeRegex } = require("../utils/sanitize");
 
 let carouselCache = null;
 
@@ -15,10 +16,10 @@ async function getCarouselDataHome() {
     return carouselCache;
 }
 
-const fetchExercises = async (page = 1) => {
-    const limit = 9;
-    const skip = limit * (page - 1);
-    return await Exercise.find().skip(skip).limit(limit).lean();
+const fetchExercises = async (page = 1, limit = 12) => {
+    const lim = Number(limit) || 12;
+    const skip = lim * (page - 1);
+    return await Exercise.find().skip(skip).limit(lim).lean();
 };
 
 const getExerciseById = async (id) => {
@@ -28,9 +29,6 @@ const getExerciseById = async (id) => {
 const getExerciseNames = async () => {
     return await Exercise.find({}, { name: 1 }).lean();
 };
-
-const escapeRegex = (s) =>
-    s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const getExerciseCount = async (term) => {
     if (!term || !term.trim() || term === "all") {
@@ -74,14 +72,14 @@ const getExerciseCount = async (term) => {
 };
 
 
-const searchExercises = async (term, page = 1) => {
-    const limit = 9;
-    const skip = limit * (page - 1);
+const searchExercises = async (term, page = 1, limit = 12) => {
+    const lim = Number(limit) || 12;
+    const skip = lim * (page - 1);
 
     if (!term?.trim() || term === "all") {
         return Exercise.find()
             .skip(skip)
-            .limit(limit)
+            .limit(lim)
             .lean();
     }
 
@@ -155,6 +153,22 @@ const getExercisesByMuscle = async (muscle) => {
     ]);
 };
 
+const getSubstitutions = async (exerciseId, target) => {
+    const normalizedTarget = (target || "").trim().toLowerCase();
+    const query = {};
+    if (exerciseId) {
+        query._id = { $ne: exerciseId };
+    }
+    if (normalizedTarget) {
+        query.$or = [
+            { target: normalizedTarget },
+            { bodyPart: normalizedTarget },
+            { secondaryMuscles: normalizedTarget },
+        ];
+    }
+    return await Exercise.find(query).limit(12).lean();
+};
+
 module.exports = {
     getCarouselDataHome,
     fetchExercises,
@@ -164,4 +178,5 @@ module.exports = {
     searchExercises,
     getExercisesByBodyPart,
     getExercisesByMuscle,
+    getSubstitutions,
 };

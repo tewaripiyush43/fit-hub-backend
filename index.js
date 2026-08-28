@@ -27,7 +27,13 @@ const BODY_LIMIT = process.env.BODY_LIMIT || "50kb";
 
 const app = express();
 
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: false,
+  })
+);
 app.use(compression());
 
 app.use(morgan('dev', { stream: morganStream }));
@@ -36,16 +42,27 @@ if (process.env.TRUST_PROXY === "1") {
   app.set("trust proxy", 1);
 }
 
-if (!CORS_ORIGIN) {
-  console.error("FATAL: CORS_ORIGIN must be set in environment variables.");
-  process.exit(1);
-}
-
 app.use(
   cors({
-    origin: CORS_ORIGIN,
+    origin: (origin, callback) => {
+      // Allow all local development origins, LAN IPs (192.168.x.x, 10.x.x.x, 172.x.x.x), localhost, and CORS_ORIGIN
+      if (!origin) return callback(null, true);
+      if (
+        origin === CORS_ORIGIN ||
+        /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+        /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
+        /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin) ||
+        /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin) ||
+        /^https?:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+(:\d+)?$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+    exposedHeaders: ["Set-Cookie"],
   })
 );
 

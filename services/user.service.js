@@ -59,42 +59,28 @@ async function removeFromFavorites(userId, exerciseId) {
     .populate("goals");
 }
 
-async function logWorkoutSession(userId, sessionData) {
-  const { workoutId, workoutName, duration, totalVolume, completedSets, totalSets } = sessionData;
+function calculateUserStreak(sessionHistory = []) {
+  if (!sessionHistory || sessionHistory.length === 0) return 0;
 
-  const user = await User.findById(userId);
-  if (!user) throw createError.NotFound("User not found");
-
-  if (!user.sessionHistory) {
-    user.sessionHistory = [];
-  }
-
-  const now = new Date();
-  const todayStr = sessionData.date || now.toLocaleDateString();
-  const timeStr = sessionData.time || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-  const newSession = {
-    workoutId,
-    workoutName,
-    date: todayStr,
-    time: timeStr,
-    timestamp: sessionData.timestamp || now.getTime(),
-    duration,
-    totalVolume,
-    completedSets,
-    totalSets,
-    exercises: sessionData.exercises || [],
-  };
-
-  user.sessionHistory.push(newSession);
-
-  // Calculate unique dates sorted ascending
   const uniqueDates = [
     ...new Set(
-      user.sessionHistory
+      sessionHistory
         .map((item) => {
-          const dateObj = new Date(item.date);
-          if (isNaN(dateObj.getTime())) return null;
+          let dateObj = item.timestamp ? new Date(item.timestamp) : null;
+          if (!dateObj || isNaN(dateObj.getTime())) {
+            dateObj = new Date(item.date);
+          }
+          if (isNaN(dateObj.getTime()) && item.date && typeof item.date === "string") {
+            const parts = item.date.split(/[\/\-\.]/);
+            if (parts.length === 3) {
+              if (parts[0].length === 4) {
+                dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+              } else if (parts[2].length === 4) {
+                dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
+              }
+            }
+          }
+          if (!dateObj || isNaN(dateObj.getTime())) return null;
           return dateObj.toDateString();
         })
         .filter(Boolean)
@@ -111,7 +97,7 @@ async function logWorkoutSession(userId, sessionData) {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    let latestDate = uniqueDates[uniqueDates.length - 1];
+    let latestDate = new Date(uniqueDates[uniqueDates.length - 1]);
     latestDate.setHours(0, 0, 0, 0);
 
     if (latestDate >= yesterday) {
@@ -119,7 +105,7 @@ async function logWorkoutSession(userId, sessionData) {
       let current = latestDate;
 
       for (let i = uniqueDates.length - 2; i >= 0; i--) {
-        let prev = uniqueDates[i];
+        let prev = new Date(uniqueDates[i]);
         prev.setHours(0, 0, 0, 0);
 
         const diffTime = current - prev;
@@ -134,8 +120,41 @@ async function logWorkoutSession(userId, sessionData) {
       }
     }
   }
+  return currentStreak;
+}
 
-  user.streak = currentStreak;
+async function logWorkoutSession(userId, sessionData) {
+  const { workoutId, workoutName, duration, totalVolume, completedSets, totalSets } = sessionData;
+
+  const user = await User.findById(userId);
+  if (!user) throw createError.NotFound("User not found");
+
+  if (!user.sessionHistory) {
+    user.sessionHistory = [];
+  }
+
+  const now = new Date();
+  const timestamp = sessionData.timestamp || now.getTime();
+  const todayStr = sessionData.date || now.toISOString().split("T")[0];
+  const timeStr = sessionData.time || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const newSession = {
+    workoutId,
+    workoutName,
+    date: todayStr,
+    time: timeStr,
+    timestamp,
+    duration,
+    totalVolume,
+    completedSets,
+    totalSets,
+    exercises: sessionData.exercises || [],
+  };
+
+  user.sessionHistory.push(newSession);
+
+  // Recalculate streak using robust date parsing
+  user.streak = calculateUserStreak(user.sessionHistory);
 
   const updatedUser = await user.save();
   return await User.findById(updatedUser._id)

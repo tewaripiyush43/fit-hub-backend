@@ -9,6 +9,9 @@ const updateUserInfoSchema = Joi.object({
   height: Joi.number().allow("", null).min(10).max(300),
   weight: Joi.number().allow("", null).min(1).max(500),
   playlistLink: Joi.string().allow("").optional(),
+  yearsTraining: Joi.number().allow("", null).min(0).max(80).optional(),
+  yearsAtGym: Joi.number().allow("", null).min(0).max(80).optional(),
+  fitnessLevel: Joi.string().allow("").valid("beginner", "intermediate", "advanced", "elite", "").optional(),
   settings: Joi.object({
     unitPreference: Joi.string().valid("metric", "imperial"),
     defaultWorkoutPrivacy: Joi.string().valid("private", "public"),

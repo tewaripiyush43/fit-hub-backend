@@ -7,8 +7,8 @@ module.exports = {
   },
 
   fetchExercises: async (req, res) => {
-    const page = req.query.page;
-    const data = await exerciseService.fetchExercises(page);
+    const { page, limit } = req.query;
+    const data = await exerciseService.fetchExercises(page, limit);
     res.json(data);
   },
 
@@ -30,8 +30,8 @@ module.exports = {
   },
 
   findSearchResult: async (req, res) => {
-    const { exercise, page } = req.query;
-    const data = await exerciseService.searchExercises(exercise, page);
+    const { exercise, page, limit } = req.query;
+    const data = await exerciseService.searchExercises(exercise, page, limit);
     res.json(data);
   },
 
@@ -44,6 +44,12 @@ module.exports = {
   findExercisesByMuscle: async (req, res) => {
     const { muscle } = req.params;
     const data = await exerciseService.getExercisesByMuscle(muscle);
+    res.json(data);
+  },
+
+  findSubstitutions: async (req, res) => {
+    const { exerciseId, target } = req.query;
+    const data = await exerciseService.getSubstitutions(exerciseId, target);
     res.json(data);
   },
 };

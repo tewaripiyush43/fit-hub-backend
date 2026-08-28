@@ -19,6 +19,9 @@ const UserSchema = new Schema({
   height: Number,
   weight: Number,
   playlistLink: { type: String, default: "" },
+  yearsTraining: { type: Number, default: null },
+  yearsAtGym: { type: Number, default: null },
+  fitnessLevel: { type: String, enum: ["beginner", "intermediate", "advanced", "elite", ""], default: "" },
   favoriteExercises: [
     {
       type: Schema.Types.ObjectId,
@@ -172,13 +175,15 @@ const UserSchema = new Schema({
         unit: String,
       }
     ],
-    default: [
-      { exercise: "Deadlift", maxWeight: 300, goalWeight: 400, unit: "lbs" },
-      { exercise: "Bench Press", maxWeight: 225, goalWeight: 300, unit: "lbs" },
-      { exercise: "Squat", maxWeight: 315, goalWeight: 400, unit: "lbs" },
-      { exercise: "Overhead Press", maxWeight: 135, goalWeight: 185, unit: "lbs" },
-    ]
-  }
+    default: [],
+  },
+  refreshTokens: [
+    {
+      token: { type: String, required: true },
+      createdAt: { type: Date, default: Date.now },
+      expiresAt: { type: Date },
+    },
+  ],
 });
 
 UserSchema.index({ followers: 1 });

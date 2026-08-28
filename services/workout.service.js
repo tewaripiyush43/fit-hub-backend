@@ -1,9 +1,12 @@
+const mongoose = require("mongoose");
 const createError = require("http-errors");
 const Workout = require("../models/workout");
 const User = require("../models/user");
 const Exercise = require("../models/exercise");
+const { escapeRegex } = require("../utils/sanitize");
 
 const WORKOUT_DESCRIPTION_MAX_LENGTH = 2500;
+const MAX_USER_WORKOUTS = 7;
 
 const getPopulatedUser = (userId) =>
     User.findById(userId)
@@ -13,7 +16,9 @@ const getPopulatedUser = (userId) =>
         .lean();
 
 const getOwnedWorkout = async (userId, workoutId) => {
-    if (!workoutId) throw createError.BadRequest("Workout id cannot be empty");
+    if (!workoutId || !mongoose.Types.ObjectId.isValid(workoutId)) {
+        throw createError.BadRequest("Invalid workout id");
+    }
 
     const workout = await Workout.findOne({ _id: workoutId, createdBy: userId });
     if (!workout) throw createError.NotFound("Workout not found");
@@ -106,10 +111,11 @@ const getExploreWorkouts = async ({
     }
 
     if (search && search.trim()) {
+        const safeSearch = escapeRegex(search.trim());
         query.$or = [
-            { name: { $regex: search.trim(), $options: "i" } },
-            { description: { $regex: search.trim(), $options: "i" } },
-            { tags: { $in: [new RegExp(search.trim(), "i")] } },
+            { name: { $regex: safeSearch, $options: "i" } },
+            { description: { $regex: safeSearch, $options: "i" } },
+            { tags: { $in: [new RegExp(safeSearch, "i")] } },
         ];
     }
 
@@ -188,9 +194,19 @@ const getOfficialWorkouts = async () => {
         .lean();
 };
 
-const createWorkout = async (userId, { name, exerciseId, description, difficulty, tags, isPrivate = true }) => {
+const createWorkout = async (userId, { name, exerciseId, description, difficulty, tags, isPrivate }) => {
+    const existingUser = await User.findById(userId).select("workouts settings").lean();
+    if (!existingUser) throw createError.NotFound("User not found");
+
+    if (existingUser.workouts && existingUser.workouts.length >= MAX_USER_WORKOUTS) {
+        throw createError.BadRequest(`Workout limit reached (${MAX_USER_WORKOUTS}/${MAX_USER_WORKOUTS}). Please delete a workout before creating a new one.`);
+    }
+
+    const defaultPrivacy = existingUser.settings?.defaultWorkoutPrivacy === "public" ? false : true;
+    const resolvedIsPrivate = isPrivate !== undefined ? Boolean(isPrivate) : defaultPrivacy;
+
     const initialExercises = [];
-    if (exerciseId) {
+    if (exerciseId && mongoose.Types.ObjectId.isValid(exerciseId)) {
         initialExercises.push(exerciseId);
     }
 
@@ -206,7 +222,7 @@ const createWorkout = async (userId, { name, exerciseId, description, difficulty
         estimatedDuration: meta.estimatedDuration,
         difficulty: difficulty || "intermediate",
         tags: tags || [],
-        isPrivate: isPrivate,
+        isPrivate: resolvedIsPrivate,
     });
 
     await workout.save();
@@ -259,7 +275,9 @@ const updateWorkout = async (userId, workoutId, { updatedData }) => {
 };
 
 const getWorkout = async (workoutId, userId) => {
-    if (!workoutId) throw createError.BadRequest("Workout id cannot be empty");
+    if (!workoutId || !mongoose.Types.ObjectId.isValid(workoutId)) {
+        throw createError.NotFound("Workout not found");
+    }
 
     const workout = await Workout.findById(workoutId)
         .populate("exercises")
@@ -268,8 +286,9 @@ const getWorkout = async (workoutId, userId) => {
 
     if (!workout) throw createError.NotFound("Workout not found");
 
-    if (workout.isPrivate && workout.createdBy?._id?.toString() !== userId && workout.createdBy?.toString() !== userId) {
-        throw createError.Forbidden("You do not have access to this private workout");
+    const isCreator = workout.createdBy?._id?.toString() === userId?.toString() || workout.createdBy?.toString() === userId?.toString();
+    if (workout.isPrivate && !isCreator) {
+        throw createError.Forbidden("This routine is private and can only be viewed by its creator.");
     }
 
     return workout;
@@ -277,7 +296,9 @@ const getWorkout = async (workoutId, userId) => {
 
 const addExerciseToWorkout = async (userId, workoutId, { exerciseId }) => {
     const workout = await getOwnedWorkout(userId, workoutId);
-    if (!exerciseId) throw createError.BadRequest("Exercise id cannot be empty");
+    if (!exerciseId || !mongoose.Types.ObjectId.isValid(exerciseId)) {
+        throw createError.BadRequest("Valid exercise id is required");
+    }
 
     if (workout.exercises.some((e) => e.toString() === exerciseId)) {
         throw createError.BadRequest("Exercise already added in workout");
@@ -299,12 +320,16 @@ const addExerciseToWorkout = async (userId, workoutId, { exerciseId }) => {
         { new: true }
     ).populate("exercises").lean();
 
-    return { workout: updatedWorkout };
+    const user = await getPopulatedUser(userId);
+
+    return { workout: updatedWorkout, user };
 };
 
 const removeExerciseFromWorkout = async (userId, workoutId, { exerciseId }) => {
     const workout = await getOwnedWorkout(userId, workoutId);
-    if (!exerciseId) throw createError.BadRequest("Exercise id cannot be empty");
+    if (!exerciseId || !mongoose.Types.ObjectId.isValid(exerciseId)) {
+        throw createError.BadRequest("Valid exercise id is required");
+    }
 
     const updatedExercises = workout.exercises.filter((e) => e.toString() !== exerciseId);
     const meta = await deriveWorkoutMetadata(updatedExercises);
@@ -322,12 +347,21 @@ const removeExerciseFromWorkout = async (userId, workoutId, { exerciseId }) => {
         { new: true }
     ).populate("exercises").lean();
 
-    return { workout: updatedWorkout };
+    const user = await getPopulatedUser(userId);
+
+    return { workout: updatedWorkout, user };
 };
 
-const generateAIWorkout = async (userId, { target, difficulty, duration, intensity, equipment, specialFocus, prompt }) => {
+const generateAIWorkout = async (userId, { target, difficulty, duration, intensity, equipment, specialFocus, prompt, isPrivate, exerciseCount }) => {
+    const existingUser = await User.findById(userId).select("workouts settings").lean();
+    if (!existingUser) throw createError.NotFound("User not found");
+
+    if (existingUser.workouts && existingUser.workouts.length >= MAX_USER_WORKOUTS) {
+        throw createError.BadRequest(`Workout limit reached (${MAX_USER_WORKOUTS}/${MAX_USER_WORKOUTS}). Please delete a workout before generating a new AI routine.`);
+    }
+
     const { generateWorkoutPlan } = require("./ai.service");
-    const aiResult = await generateWorkoutPlan({ target, difficulty, duration, intensity, equipment, specialFocus, prompt });
+    const aiResult = await generateWorkoutPlan({ target, difficulty, duration, intensity, equipment, specialFocus, prompt, exerciseCount });
 
     const exerciseNames = aiResult.exercises || [];
     const matchedExerciseIds = [];
@@ -337,10 +371,12 @@ const generateAIWorkout = async (userId, { target, difficulty, duration, intensi
         if (found) {
             matchedExerciseIds.push(found._id);
         } else {
+            const safeNamePart = escapeRegex(name.split(" ")[0] || name);
+            const safeTarget = escapeRegex(target || "chest");
             const fallback = await Exercise.findOne({
                 $or: [
-                    { name: { $regex: name.split(" ")[0] || name, $options: "i" } },
-                    { target: { $regex: target || "chest", $options: "i" } }
+                    { name: { $regex: safeNamePart, $options: "i" } },
+                    { target: { $regex: safeTarget, $options: "i" } }
                 ]
             });
             if (fallback) matchedExerciseIds.push(fallback._id);
@@ -360,6 +396,10 @@ const generateAIWorkout = async (userId, { target, difficulty, duration, intensi
 
     const meta = await deriveWorkoutMetadata(validExerciseIds);
 
+    // AI-generated workouts default to private unless user explicitly chose public or user default setting is public
+    const defaultPrivacy = existingUser.settings?.defaultWorkoutPrivacy === "public" ? false : true;
+    const resolvedIsPrivate = isPrivate !== undefined ? Boolean(isPrivate) : defaultPrivacy;
+
     const workout = new Workout({
         name: workoutName,
         description: workoutDescription,
@@ -369,7 +409,7 @@ const generateAIWorkout = async (userId, { target, difficulty, duration, intensi
         estimatedDuration: Number(duration) || meta.estimatedDuration,
         difficulty: difficulty || "intermediate",
         tags: ["AI Generated", target || "Full Body", equipment || "Gym"],
-        isPrivate: false,
+        isPrivate: resolvedIsPrivate,
         createdBy: userId,
     });
 
@@ -389,11 +429,23 @@ const generateAIWorkout = async (userId, { target, difficulty, duration, intensi
 };
 
 const cloneWorkout = async (userId, workoutId) => {
-    if (!workoutId) throw createError.BadRequest("Workout id cannot be empty");
+    if (!workoutId || !mongoose.Types.ObjectId.isValid(workoutId)) {
+        throw createError.BadRequest("Invalid workout id");
+    }
+
+    const existingUser = await User.findById(userId).select("workouts").lean();
+    if (!existingUser) throw createError.NotFound("User not found");
+
+    if (existingUser.workouts && existingUser.workouts.length >= MAX_USER_WORKOUTS) {
+        throw createError.BadRequest(`Workout limit reached (${MAX_USER_WORKOUTS}/${MAX_USER_WORKOUTS}). Please delete an existing workout to save this routine.`);
+    }
+
     const originalWorkout = await Workout.findById(workoutId).lean();
     if (!originalWorkout) throw createError.NotFound("Workout not found");
-    if (originalWorkout.isPrivate && originalWorkout.createdBy?.toString() !== userId) {
-        throw createError.Forbidden("This workout is private.");
+
+    const isCreator = originalWorkout.createdBy?.toString() === userId?.toString();
+    if (originalWorkout.isPrivate && !isCreator) {
+        throw createError.Forbidden("This workout is private and cannot be cloned.");
     }
 
     // Increment popularity counter on the source workout

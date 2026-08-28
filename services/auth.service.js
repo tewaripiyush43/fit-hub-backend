@@ -38,12 +38,17 @@ const register = async (userData) => {
     const defaultGoals = createDefaultGoals(savedUser.id);
     const goals = await Goal.insertMany(defaultGoals);
 
-    // We are not returning the userWithGoals yet in the original controller,
-    // but it did populate goals. The original response only sent { accessToken }.
-    // However, it updated the user goals. We keep this logic.
     const userWithGoals = await User.findByIdAndUpdate(
         savedUser.id,
-        { goals: goals },
+        {
+            goals: goals,
+            $push: {
+                refreshTokens: {
+                    token: refreshToken,
+                    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                },
+            },
+        },
         { new: true }
     )
         .populate("workouts")
@@ -68,23 +73,72 @@ const login = async ({ emailOrUsername, password }) => {
 
     const accessToken = await signAccessToken(user.id);
     const refreshToken = await signRefreshToken(user.id);
-    const populatedUser = await getPopulatedUser(user.id);
 
+    // Save refresh token to user record (keep max 10 active devices/sessions)
+    await User.findByIdAndUpdate(user.id, {
+        $push: {
+            refreshTokens: {
+                $each: [{
+                    token: refreshToken,
+                    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                }],
+                $slice: -10,
+            },
+        },
+    });
+
+    const populatedUser = await getPopulatedUser(user.id);
     return { accessToken, refreshToken, user: populatedUser };
 };
 
 const refreshToken = async (refreshTokenInput) => {
-    if (!refreshTokenInput) throw createError.BadRequest();
+    if (!refreshTokenInput) throw createError.BadRequest("Refresh token required");
     const userId = await verifyRefreshToken(refreshTokenInput);
-    const accessToken = await signAccessToken(userId);
-    return { accessToken };
+
+    // Check if token exists in user's active tokens list
+    const user = await User.findOne({
+        _id: userId,
+        "refreshTokens.token": refreshTokenInput,
+    });
+
+    if (!user) {
+        // Token reuse or already revoked -> reject
+        throw createError.Unauthorized("Invalid or revoked refresh token");
+    }
+
+    // Refresh Token Rotation: Invalidate old token and issue new token pair
+    const newAccessToken = await signAccessToken(userId);
+    const newRefreshToken = await signRefreshToken(userId);
+
+    await User.findByIdAndUpdate(userId, {
+        $pull: { refreshTokens: { token: refreshTokenInput } },
+    });
+
+    await User.findByIdAndUpdate(userId, {
+        $push: {
+            refreshTokens: {
+                $each: [{
+                    token: newRefreshToken,
+                    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                }],
+                $slice: -10,
+            },
+        },
+    });
+
+    return { accessToken: newAccessToken, refreshToken: newRefreshToken };
 };
 
 const logout = async (refreshTokenInput) => {
-    if (!refreshTokenInput) throw createError.BadRequest();
-    // We strictly verify it exists? The original code verified it.
-    // Actually original code just cleared cookie if exists or threw bad request if not.
-    // It didn't verify logic for logout.
+    if (!refreshTokenInput) return true;
+    try {
+        const userId = await verifyRefreshToken(refreshTokenInput);
+        await User.findByIdAndUpdate(userId, {
+            $pull: { refreshTokens: { token: refreshTokenInput } },
+        });
+    } catch (e) {
+        // Even if token verification fails, allow logout to proceed cleanly
+    }
     return true;
 };
 

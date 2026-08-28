@@ -10,6 +10,7 @@ const {
   findSearchResult,
   findExercisesByBodyPart,
   findExercisesByMuscle,
+  findSubstitutions,
 } = require("../controllers/exercise");
 
 router.get("/fetchCarouselDataHome", carouselDataHome);
@@ -18,6 +19,7 @@ router.get("/findex/:id", findExercise);
 router.get("/fetchnames", findNames);
 router.get(`/fetchCount`, findCount);
 router.get(`/exercises`, findSearchResult);
+router.get(`/exercises/substitutions`, findSubstitutions);
 router.get(`/exercises/bodyParts/:bodyPart`, findExercisesByBodyPart);
 router.get(`/exercises/:muscle`, findExercisesByMuscle);
 
